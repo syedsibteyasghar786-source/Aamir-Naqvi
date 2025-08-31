@@ -124,7 +124,7 @@ export function VideoThumbnail({
           } transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
           loop={isShowreel}
           playsInline
-          preload="metadata" // Only load metadata for thumbnail
+         
           onLoadedData={() => {
             setVideoLoaded(true);
             // Seek to 1 second for better thumbnail
