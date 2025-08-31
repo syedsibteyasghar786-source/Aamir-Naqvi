@@ -129,7 +129,7 @@ export function VideoThumbnail({
             setVideoLoaded(true);
             // Seek to 1 second for better thumbnail
             if (videoRef.current && !hasInteracted) { 
-              videoRef.current.currentTime = 1;
+              videoRef.current.currentTime = 0;
             }
           }}
           onPlay={() => {
