@@ -116,7 +116,7 @@ export function VideoThumbnail({
       onClick={handleClick}
     >
       {/* Single video element that handles both preview and playback */}
-      {isInView && (
+   
         <video
           ref={videoRef}
           className={`absolute inset-0 w-full h-full ${
