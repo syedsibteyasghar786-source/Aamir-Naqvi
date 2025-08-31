@@ -122,7 +122,6 @@ export function VideoThumbnail({
           className={`absolute inset-0 w-full h-full ${
             isFullscreen ? 'object-contain' : 'object-cover'
           } transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
-          muted={!isShowreel}
           loop={isShowreel}
           playsInline
           preload="metadata" // Only load metadata for thumbnail
