@@ -20,11 +20,13 @@ export function VideoThumbnail({
   isShowreel = false,
 }: VideoThumbnailProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const aspectClasses =
@@ -39,6 +41,11 @@ export function VideoThumbnail({
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsInView(true);
+          // Load preview video when in view
+          if (previewVideoRef.current) {
+            previewVideoRef.current.src = src;
+            previewVideoRef.current.load();
+          }
           observer.disconnect();
         }
       },
@@ -109,6 +116,28 @@ export function VideoThumbnail({
       } ${className}`}
       onClick={handleClick}
     >
+      {/* Preview video (shows first frame) */}
+      {isInView && (
+        <video
+          ref={previewVideoRef}
+          className={`w-full h-full transition-opacity duration-300 ${
+            isFullscreen ? 'object-contain' : 'object-cover'
+          } ${previewLoaded && !isPlaying ? 'opacity-100' : 'opacity-0'}`}
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedData={() => {
+            setPreviewLoaded(true);
+            // Seek to a frame that's likely to have content (1 second in)
+            if (previewVideoRef.current) {
+              previewVideoRef.current.currentTime = 1;
+            }
+          }}
+          onError={() => {
+            console.error('Preview video failed to load:', src);
+          }}
+        />
+      )}
   
       {/* Video element */}
       {isInView && (
@@ -133,6 +162,10 @@ export function VideoThumbnail({
         />
       )}
 
+      {/* Fallback background for when preview is loading */}
+      {!previewLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900" />
+      )}
     
 
       {/* Play button overlay */}
