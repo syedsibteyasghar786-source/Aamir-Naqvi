@@ -25,7 +25,6 @@ export function VideoThumbnail({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isInView, setIsInView] = useState(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,16 +40,11 @@ export function VideoThumbnail({
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsInView(true);
-          // Load preview video when in view
-          if (previewVideoRef.current) {
-            previewVideoRef.current.src = src;
-            previewVideoRef.current.load();
-          }
           observer.disconnect();
         }
       },
       { 
-        rootMargin: '100px',
+        rootMargin: '200px',
         threshold: 0.1
       }
     );
@@ -60,6 +54,15 @@ export function VideoThumbnail({
     return () => observer.disconnect();
   }, []);
 
+  // Load preview when in view
+  useEffect(() => {
+    if (isInView && previewVideoRef.current && !previewLoaded) {
+      const previewVideo = previewVideoRef.current;
+      previewVideo.src = src;
+      previewVideo.load();
+    }
+  }, [isInView, src, previewLoaded]);
+
   const handleClick = async () => {
     if (!videoRef.current) return;
 
@@ -67,9 +70,10 @@ export function VideoThumbnail({
       videoRef.current.pause();
       setIsPlaying(false);
     } else {
-      if (!videoLoaded) {
-        setIsLoading(true);
-        // Load the video source
+      setIsLoading(true);
+      
+      // Load the main video
+      if (videoRef.current.src !== src) {
         videoRef.current.src = src;
         videoRef.current.load();
       }
@@ -77,6 +81,7 @@ export function VideoThumbnail({
       try {
         await videoRef.current.play();
         setIsPlaying(true);
+        setIsLoading(false);
       } catch (error) {
         console.error('Error playing video:', error);
         setIsLoading(false);
@@ -116,19 +121,19 @@ export function VideoThumbnail({
       } ${className}`}
       onClick={handleClick}
     >
-      {/* Preview video (shows first frame) */}
-      {isInView && (
+      {/* Preview video (thumbnail) - only visible when not playing */}
+      {isInView && !isPlaying && (
         <video
           ref={previewVideoRef}
-          className={`w-full h-full transition-opacity duration-300 ${
+          className={`absolute inset-0 w-full h-full ${
             isFullscreen ? 'object-contain' : 'object-cover'
-          } ${previewLoaded && !isPlaying ? 'opacity-100' : 'opacity-0'}`}
+          } transition-opacity duration-300 ${previewLoaded ? 'opacity-100' : 'opacity-0'}`}
           muted
           playsInline
           preload="metadata"
           onLoadedData={() => {
             setPreviewLoaded(true);
-            // Seek to a frame that's likely to have content (1 second in)
+            // Seek to 1 second to get a better thumbnail
             if (previewVideoRef.current) {
               previewVideoRef.current.currentTime = 1;
             }
@@ -138,39 +143,46 @@ export function VideoThumbnail({
           }}
         />
       )}
-  
-      {/* Video element */}
+
+      {/* Main video (plays when clicked) */}
       {isInView && (
         <video
           ref={videoRef}
-          className={`w-full h-full transition-opacity duration-300 ${
+          className={`absolute inset-0 w-full h-full ${
             isFullscreen ? 'object-contain' : 'object-cover'
-          } ${videoLoaded && isPlaying ? 'opacity-100' : 'opacity-0'}`}
-        
+          } transition-opacity duration-300 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}
+          muted={!isShowreel}
           loop={isShowreel}
           playsInline
           preload="none"
-          onLoadedData={() => {
-            setVideoLoaded(true);
+          onPlay={() => {
+            setIsPlaying(true);
             setIsLoading(false);
           }}
-          onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
           onLoadStart={() => setIsLoading(true)}
           onCanPlay={() => setIsLoading(false)}
+          onError={() => {
+            setIsLoading(false);
+            console.error('Video failed to load:', src);
+          }}
         />
       )}
 
-      {/* Fallback background for when preview is loading */}
-      {!previewLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900" />
+      {/* Fallback background when nothing is loaded */}
+      {!previewLoaded && !isPlaying && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+          <div className="text-white/40 text-center">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-xs font-bosenAlt">LOADING</p>
+          </div>
+        </div>
       )}
-    
 
-      {/* Play button overlay */}
-      {(!isPlaying || !videoLoaded) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+      {/* Play button overlay - only show when not playing */}
+      {!isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
           <div className={`bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-300 ${playButtonSize} ${
             isLoading ? 'animate-pulse' : (isMobile() ? '' : 'group-hover:bg-white/30')
           }`}>
@@ -188,17 +200,17 @@ export function VideoThumbnail({
       )}
 
       {/* Hover overlay */}
-      {!isFullscreen && (
+      {!isFullscreen && !isPlaying && (
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300" />
       )}
-
+      
       {/* Fullscreen button */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           toggleFullscreen();
         }}
-        className={`absolute bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-all duration-300 z-10 ${
+        className={`absolute bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-all duration-300 z-20 ${
           isFullscreen 
             ? 'top-8 right-8 w-12 h-12 opacity-100' 
             : 'top-4 right-4 w-10 h-10 opacity-0 group-hover:opacity-100'
@@ -210,9 +222,9 @@ export function VideoThumbnail({
           <Maximize2 size={16} className="text-white" />
         )}
       </button>
-
+      
       {/* Title Badge */}
-      <div className={`absolute transition-all duration-300 ${
+      <div className={`absolute transition-all duration-300 z-20 ${
         isFullscreen 
           ? 'bottom-8 left-8 opacity-100' 
           : 'bottom-4 left-4 opacity-0 group-hover:opacity-100'
